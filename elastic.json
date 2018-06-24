@@ -1,0 +1,133 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+	"Bucket": {
+	    "Description": "Enter the name of your bucket with the lambda zip file",
+	    "Type": "String"
+	},
+	"Filename": {
+	    "Description": "Enter the name of the zip file with index.js for the lambda function",
+	    "Type": "String",
+	    "Default": "elastic.zip"
+	},
+	"Name": {
+	    "Description": "Enter the name of the lambda function as it will appear",
+	    "Type": "String"
+	},
+        "Hostname": {
+	    "Description": "Enter the endpoint of Elastic Search",
+            "Type": "String"
+        },
+        "Port": {
+	    "Description": "Enter the port number for Elastic Search",
+            "Type": "String"
+        },
+        "Username": {
+            "Type": "String",
+	    "Default": "elastic"
+        },
+        "Password": {
+            "Type": "String"
+        },
+        "Index": {
+	    "Description": "Enter the index name with the assumption that a date will be appended at the end",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "LambdaRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "lambda.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+
+                },
+		"ManagedPolicyArns": [
+		    "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole",
+		    "arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess"
+                ]
+            }
+        },
+        "ToElasticCloud": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "FunctionName": {
+		    "Fn::Sub": "${Name}-Sender"
+                },
+                "Handler": "index.handler",
+		"Role": {
+                    "Fn::GetAtt": [
+                        "LambdaRole",
+                        "Arn"
+                    ]
+                },
+                "Timeout": "20",
+                "MemorySize": "128",
+                "TracingConfig": {
+                    "Mode": "Active"
+                },
+                "Environment": {
+                    "Variables": {
+                        "username": {
+                            "Ref": "Username"
+                        },
+                        "index": {
+                            "Ref": "Index"
+                        },
+                        "password": {
+                            "Ref": "Password"
+                        },
+                        "hostname": {
+                            "Ref": "Hostname"
+                        },
+                        "port": {
+                            "Ref": "Port"
+                        }
+                    }
+                },
+                "Runtime": "nodejs4.3",
+                "Code": {
+		    "S3Bucket": { "Ref": "Bucket" },
+		    "S3Key": { "Ref": "Filename" }
+                }
+            }
+        },
+	"LambdaInvokePermission": {
+	    "Type": "AWS::Lambda::Permission",
+	    "Properties": {
+		"FunctionName": {
+		    "Fn::GetAtt": [
+			"ToElasticCloud",
+			"Arn"
+		    ]
+		},
+		"Action": "lambda:InvokeFunction",
+		"Principal": { "Fn::Join" : [ "", [ "logs.", {"Ref": "AWS::Region" }, ".amazonaws.com" ] ] },
+		"SourceAccount": {
+			"Ref": "AWS::AccountId"
+		}
+	}
+}
+    },
+    "Outputs": {
+	"Destination" : {
+      	    "Description": "Destination",
+	    "Value": {
+            	"Fn::GetAtt": [
+                    "ToElasticCloud",
+                    "Arn"
+                ]
+            },
+      	    "Export" : { "Name" : {"Fn::Sub": "${Name}-Sender" }}
+    	}
+    }
+}
