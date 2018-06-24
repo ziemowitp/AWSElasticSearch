@@ -8,8 +8,6 @@ The lambda function is based on Amazon's native lambda function.  The problem wi
 
 Create an S3 bucket and drop zipped up index.js file.  It must be located in the same region where you're planning to deploy the lambda function.
 
-```
-
 Run the Cloudformation template.  It will prompt you for everything you need for a successful deployment.  This includes:
 
 - bucket name containing the zipped index.js file
